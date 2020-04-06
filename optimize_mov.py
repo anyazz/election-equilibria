@@ -3,6 +3,7 @@ import numpy as np
 import heapq
 import gurobipy as gp
 import math
+from utils import roundl
     
 def ftpl(e, epsilon):
     iters = 4 * e.n**2 * max(e.A.k, e.B.k)/(epsilon**2)
@@ -47,10 +48,8 @@ def mov_oracle(e, cand, X_opp):
         if len(heap):
             x_score, x = heapq.heappop(heap)
             max_X = cand.max_expenditure(e, X_opp, x)
+            print()
             X[x] = min(max_X, remaining)
             assert X[x] > 0
         remaining -= X[x]
     return X
-
-def roundl(lst, precision):
-    return [round(x, precision) for x in lst]

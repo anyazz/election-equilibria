@@ -3,40 +3,44 @@ import numpy as np
 from scipy.stats import norm
 import math
 from poibin import PoiBin
+np.set_printoptions(threshold=np.inf)
 
 delta = 0.0001
 
 class Election:
-    def __init__(self, network, candidates, T, theta=[], random=False, model_type='linear'):
+    def __init__(self, network, candidates, T, opinion_attr=None, theta=[], rand=False, model_type='linear'):
         self.network = network
-        self.P = np.array(network["relationsMatrix"])
+        self.P = np.array(network["trustMatrix"])
         self.n = len(self.P)
         self.model_type = model_type
+        self.theta = np.array([0.5] * self.n)
         if len(theta):
             self.theta = np.array(theta)
         else: 
-            [0.5] * self.n
             if model_type == 'linear':
-                if random:
-                    self.theta = [random.random() for _ in range(self.n)]
+                if rand:
+                    self.theta = np.array([random.random() for _ in range(self.n)])
                 else:
-                    self.assign_opinions()
+                    self.assign_opinions(opinion_attr)
         self.A, self.B = candidates
         self.A.opp, self.B.opp = self.B, self.A
         # self.A.p = np.ones(self.n)
         # self.B.p = -1 * np.ones(self.n)
         self.P_T = np.linalg.matrix_power(self.P, T)
-        self.alpha = np.dot(self.P_T, np.ones(self.n))
+        # print(self.P_T)
+        self.alpha = np.sum(np.array(self.P_T), axis=0)
 
-    def assign_opinions(self):
+    def assign_opinions(self, attr):
+        r, s, d = (0, 0.5), (0.4, 0.6) , (0.5, 1)
+        rule = {
+        "race": {0: s, 1: r, 2: d, 3: s, 4: s, 5: s},
+        "sex": {1: r, 2: d},
+        }
         for i in range(self.n):
-            race = self.network["race"][i][0]
-            if race == 0:
-                self.theta[i] = random.random()
-            elif race in [1, 3, 4, 5]:
-                self.theta[i] = random.uniform(0, 0.8)
-            elif race == 2:
-                self.theta[i] = random.uniform(0.5, 1)
+            a = self.network[attr][i][0]
+            theta_range = rule[attr][a]
+            self.theta[i] = random.uniform(theta_range[0], theta_range[1])
+        self.theta = np.array(self.theta)
 
     def advertise(self):
         theta_0 = self.theta + (np.ones(self.n) - self.theta) * self.A.p * self.A.X - self.theta * self.B.p * self.B.X \
@@ -45,7 +49,9 @@ class Election:
 
     def update_network(self):
         self.theta_0 = self.advertise()
+        print(self.theta_0[:10])
         self.theta_T = np.matmul(self.P_T, self.theta_0)
+        print(self.theta_T[:10])
 
     def calculate_mean(self):
         self.update_network()
@@ -69,21 +75,6 @@ class Election:
         pb = PoiBin(self.theta_T)
         return 1 - pb.cdf(math.floor(self.n/2))
 
-    def round_probabilities(self, lst):
-        # round items in list if just above 1 or just below 0 due to float issues
-        for i in range(len(lst)):
-            if lst[i] > 1:
-                if lst[i]-1 < delta:
-                    lst[i] = 1
-                else:
-                    print(i, lst[i])
-                    raise Exception("probability > 1 for item {}: {}".format(i, lst[i]))
-            if lst[i] < 0:
-                if -lst[i] < delta:
-                    lst[i] = 0
-                else:
-                    raise Exception("probability < 0 for item {}: {}".format(i, lst[i]))
-        return lst
 class Candidate:
     def __init__(self, id_, k, goal, n, p=[]):
         self.id = id_
@@ -92,10 +83,13 @@ class Candidate:
         if len(p):
             self.p = np.array(p) 
         else:
-            numpy.multiply(1 if goal else -1, [random.random() for _ in range(n)])
+            self.p = np.multiply(1 if goal else -1, [random.random() for _ in range(n)])
         self.X = np.zeros(n)
         self.ftpl_history = []
         self.opp = None
+
+    # def assign_p(self):
+
 
     # u
     def marginal_payoff(self, e, X_opp):
