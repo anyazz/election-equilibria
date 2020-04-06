@@ -8,21 +8,18 @@ np.set_printoptions(threshold=np.inf)
 
 # networks: list of dicts for each community network, comprising following columns
 def main():
-    networks = []
     cols = ('relationsMatrix', 'grade', 'race', 'scode', 'sex', 'totalnoms')
 
-    for i in range(1, 85):
+    for i in range(10, 85):
         print("loading " + str(i))
-        file_dict = scipy.io.loadmat('matlab_matrices/comm' + str(i) + '.mat')
+        file_dict = scipy.io.loadmat('data/matlab_matrices/comm' + str(i) + '.mat')
         dct = {k: file_dict[k] for k in cols}
         # assert check_noms(i, dct['relationsMatrix'], dct['totalnoms'])
         dct['trustMatrix'] = calculate_influence(dct['relationsMatrix'])
-        networks.append(dct)
-    
-
-    with open('data/ADD_data.json', 'w') as f:
-        data = json.dumps(networks, cls=NumpyEncoder)
-        f.write(data)
+        
+        with open('data/json/comm' + str(i) + '.json', 'w') as f:
+            data = json.dumps(dct, cls=NumpyEncoder)
+            f.write(data)
 
 
 # sanity check: ensure that number of outgoing edges <= total nominations for each node

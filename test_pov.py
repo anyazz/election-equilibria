@@ -1,0 +1,82 @@
+from classes import Election, Candidate
+from optimize_pov import *
+import random
+import json
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# n = 3
+# network = {'relationsMatrix': np.identity(n)}
+# p_a = [0.57, 1, 0.44]
+# p_b = np.multiply(-1, [0, 0, 0])
+# theta = [0.3, 0.2, 0.1]
+# A = Candidate("A", .5, 1, n, p_a)
+# B = Candidate("B", 0, 0, n, p_b)
+# e2 = Election(network, [A, B], 20, theta)
+# e2.update_network()
+
+n = 3
+network = {'relationsMatrix': np.identity(n)}
+p_b = [0.2, 1, 1]
+p_a = np.zeros(n)
+theta = [0.9, 0.1, 0.1]
+A = Candidate("A", 0, 1, n, p_a)
+B = Candidate("B", 2, 0, n, p_b)
+e3 = Election(network, [A, B], 0, theta)
+e3.update_network()
+
+# e3.theta = np.array([0.1, 1, 1])
+# print(e3.calculate_pov_approx())
+
+
+def test(e):
+    print_results(e)
+    min_mean = e.calculate_mean()
+    # max_mean = min_mean + max(e.A.k, e.B.k) * max(max(e.A.p), max(e.B.p))
+   
+    print("THETA_T", e.theta_T)
+    mus = np.linspace(0, 1.5, 51)
+    results = []
+    povs_approx, povs_exact, x = [], [], []
+    for mu in mus:
+        result = {}
+        try:
+            pov_oracle_iter(e, B, mu, A.X)
+            result["POVa"] = round(e.calculate_pov_approx(), 3)
+            result["POVe"] = round(e.calculate_pov_exact(), 3)
+            result["theta"] = [round(i, 3) for i in e.theta_T]
+            result["X"] = [round(i, 3) for i in B.X]
+            povs_exact.append(result["POVe"])
+            povs_approx.append(result["POVa"])
+            x.append(mu)
+        except AttributeError:
+            pass
+        results.append(result)
+    print("i", '\t', "mu",'\t', "POVa", '\t', "POVe", '\t', "theta", '\t', "X")
+    losing = True
+    print('\n', 'MAXIMIZING VAR')
+    for i in range(len(mus)):
+        r = results[i]
+        if losing and mus[i] > (e.n+1)/2:
+            print('\n', 'MINIMIZING VAR')
+            losing = False
+        if r:
+            print(i,'\t', round(mus[i], 3), '\t', r["POVa"],'\t', r["POVe"], '\t', r["theta"], '\t', r["X"])
+        else:
+            print (i, '\t', round(mus[i], 3), '\t', None)
+    i_a = np.argmax(povs_approx)
+    i_e = np.argmax(povs_exact)
+    print("BEST APPROX:", x[i_a])
+    print("BEST EXACT:", x[i_e])
+    print((e.n+1)/2)
+    # plt.plot(x, povs_exact)
+    # plt.plot(x, povs_approx)
+    # plt.show()
+
+def print_results(e):
+    print('MEAN: ', e.calculate_mean())
+    print('POV APPROX: ', e.calculate_pov_approx())
+    print('POV EXACT: ', e.calculate_pov_exact())
+
+test(e3)
