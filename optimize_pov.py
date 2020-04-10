@@ -3,46 +3,116 @@ import numpy as np
 import heapq
 import gurobipy as gp
 from optimize_mov import mov_oracle
+import sys, os
+from utils import *
 
-def double_oracle(e, epsilon):
-    S_A = [np.zeros(e.n)]
-    S_B = [np.zeros(e.n)]
+def random_allocate(e, cand):
+    remaining = cand.k
+    cand.X = np.zeros(e.n)
+    while remaining > 0:
+        i = random.randint(0, e.n-1)
+        if cand.p[i] > 0:
+            new = min(remaining, random.uniform(0, 1/cand.p[i] - cand.X[i]))
+            cand.X[i] += new
+            remaining -= new
 
-    
-    # max_mean = min_mean + max(e.A.k, e.B.k) * max(max(e.A.p), max(e.B.p))
-   
+def iterated_best_response(e, epsilon, max_iters):
+    i = 0
+    restarts = 0
+    profiles_seen = set()
+    e.A.pov_old = -float('inf')
+    e.A.pov = -float('inf')
+    e.B.pov_old = -float('inf')
+    e.B.pov = -float('inf')
+    while i < max_iters:
+        print("iteration", i)
+        for cand in [e.A, e.B]:
+            print("optimizing for cand {}".format(cand.id))
+            min_mu = sum(e.theta)
+            cand.X = mov_oracle(e, cand, cand.opp.X)
+            e.update_network()
+            max_mu = e.calculate_mean()
+            min_mu, max_mu = min(min_mu, max_mu), max(min_mu, max_mu) 
+            cand.X, cand.pov = pov_oracle(e, cand, min_mu, max_mu, 30)
+            if abs(cand.pov - cand.pov_old) < epsilon:
+                cand.opp.X = cand.opp.X_old
+                cand.opp.pov = cand.opp.pov_old
+                print("POV", cand.pov, cand.opp.pov)
+                return i, restarts
+            cand.X_old = cand.X
+            cand.pov_old = cand.pov
+        tup = tuple(roundl(np.concatenate([e.A.X, e.B.X]), 3))
+        if tup in profiles_seen:
+            restarts += 1
+            print("CYCLE --> RESTARTING")
+            random_allocate(e, e.A)
+            print("new XA", e.A.X)
+            random_allocate(e, e.B)
+            print("new XB", e.B.X)
+        profiles_seen.add(tup)
+        print("POV", e.A.pov, e.B.pov)
+        i += 1
 
-def pov_oracle(e, cand, X_opp, nguesses):
-    # A
-    if cand_goal:
-        min_mu = e.calculate_mean()
-        max_mu = min_mu + cand.k
-    else:
-        max_mu = e.calculate_mean()
-        min_mu = max_mu - cand.k
+       # max_mean = min_mean + max(e.A.k, e.B.k) * max(max(e.A.p), max(e.B.p))
+
+def pov_oracle(e, cand, min_mu, max_mu, nguesses):
+    # blockPrint()
+    opp = cand.opp
     mus = np.linspace(min_mu, max_mu, nguesses)
+    print(mus)
+    stepsize = (max_mu - min_mu) / nguesses
     Xs = []
+    povs_exact = []
+    povs_approx = []
+    results = []
     for mu in mus:
+        result = {}
         try:
-            X = pov_oracle_iter(e, cand, mu, X_opp)
+            X = pov_oracle_iter(e, cand, mu, stepsize)
+            result["POVa"] = round(e.calculate_pov_approx(), 3)
+            result["POVe"] = round(e.calculate_pov_exact(), 3)
+            result["theta"] = [round(i, 3) for i in e.theta_T]
+            result["X"] = [round(i, 3) for i in X]
             povs_exact.append(e.calculate_pov_exact())
             povs_approx.append(e.calculate_pov_approx())
             Xs.append(X)
         except AttributeError:
             pass
-    x_a = np.argmax(povs_approx)
-    x_e = np.argmax(povs_exact)
+        results.append(result)
+    print(povs_approx)
+    print(povs_exact)
+    if cand.id == "A":
+        x_a = np.argmax(povs_approx)
+        x_e = np.argmax(povs_exact)
+    else:
+        x_a = np.argmin(povs_approx)
+        x_e = np.argmin(povs_exact)
+
+    print("i", '\t', "mu",'\t', "POVa", '\t', "POVe", '\t', "theta", '\t', "X")
+    losing = True
+    print('\n', 'MAXIMIZING VAR')
+    for i in range(len(mus)):
+        r = results[i]
+        if losing and mus[i] > (e.n+1)/2:
+            print('\n', 'MINIMIZING VAR')
+            losing = False
+        if r:
+            print(i,'\t', round(mus[i], 3), '\t', r["POVa"],'\t', r["POVe"], '\t', r["theta"], '\t', r["X"])
+        else:
+            print (i, '\t', round(mus[i], 3), '\t', None)
+    # enablePrint()
+    cand.X = Xs[x_e]
     return Xs[x_e], povs_exact[x_e]     
 
-def pov_oracle_iter(e, cand, mu, X_opp):
+def pov_oracle_iter(e, cand, mu, stepsize):
     opp = cand.opp
-    if cand.goal:
-        A, B = cand, cand.opp
-    else:
-        B, A = cand, cand.opp
+    # if cand.id == "A":
+    #     A, B = cand, cand.opp
+    # else:
+    #     B, A = cand, cand.opp
     m = gp.Model("POV")
-    c = e.theta + (opp.goal - e.theta) * opp.p * X_opp
-    u = cand.marginal_payoff(e, X_opp)
+    c = e.theta + (opp.goal - e.theta) * opp.p * opp.X
+    u = cand.marginal_payoff(e, opp.X)
 
     # decision variables, bounded between 0 and 1
     X = m.addVars([i for i in range(e.n)], name=["X" + str(i) for i in range(e.n)])
@@ -52,17 +122,15 @@ def pov_oracle_iter(e, cand, mu, X_opp):
     for i in range(e.n):
         y = 0
         for j in range(e.n):
-            y += e.P_T.item(i, j) * (e.theta[j] + (opp.goal - e.theta[j]) * opp.p[j] * X_opp[j] + (cand.goal-e.theta[j]) * cand.p[j]*X[j] \
-             + (2 * e.theta[j] - 1) * cand.p[j] * opp.p[j] * X_opp[j] * X[j]) 
+            y += e.P_T.item(i, j) * (e.theta[j] + (opp.goal - e.theta[j]) * opp.p[j] * opp.X[j] + (cand.goal-e.theta[j]) * cand.p[j]*X[j] \
+             + (2 * e.theta[j] - 1) * cand.p[j] * opp.p[j] * opp.X[j] * X[j]) 
         obj += y * y
     
 
     # check if either A losing and optimizing for A, or B losing and optimizing for B
-    if (mu < (e.n+1)/2 and cand.goal) or (mu > (e.n+1)/2 and not cand.goal):
-        print("minimize")
+    if (mu < (e.n+1)/2 and cand.id == "A") or (mu > (e.n+1)/2 and cand.id == "B"):
         m.setObjective(obj, gp.GRB.MINIMIZE)
     else:
-        print("maximize")
         m.setObjective(obj, gp.GRB.MAXIMIZE)
         m.params.NonConvex = 2
 
@@ -76,71 +144,29 @@ def pov_oracle_iter(e, cand, mu, X_opp):
         mean += sign * X[i] * u[i] + e.alpha[i] * c[i]
     m.addConstr(mean == mu)
 
+
     # min/max opinion constraint
     m.addConstrs((X[i] <= 1/cand.p[i] for i in range(e.n)))
-    m.setParam("LogFile", "gurobi.log");
+    m.setParam("OutputFlag", 0);
+
     m.optimize()
 
-    for v in m.getVars():
-        print('%s %g' % (v.varName, v.x))
-    print('Obj: %g' % m.objVal)
+    # for v in m.getVars():
+    #     print('%s %g' % (v.varName, v.x))
+    # print('Obj: %g' % m.objVal)
 
-    cand.X = [i.x for i in m.getVars()]
-    e.update_network()
-    print('Theta 0', e.theta_0)
-    print('Theta T', e.theta_T)
-    return cand.X
-
-
-def coreLP(e, S_a, S_b):
-    a, u_a = coreLPA(e, S_a, S_b)
-    X_a =  np.average(S_a, axis=0, weights=a)
-    b, u_b = coreLPB(e, S_a, S_b)
-    X_b =  np.average(S_b, axis=0, weights=a)
-    return X_a, X_b, u_a, u_b
-
-
-def coreLPA(e, S_a, S_b):
-    m = gp.Model("CoreLP")
-    max_u = m.addVar(name="u")
-    J, K = len(S_a), len(S_b)
-    a = m.addVars([i for i in range(J)], name=["a" + str(i) for i in range(e.n)], ub=1)
+    X_cand = [i.x for i in m.getVars()]
+    cand.X = X_cand
     
-    m.setObjective(max_u, GRB.MAXIMIZE)
+    return X_cand
 
-    # minimax constraint
-    for k in range(K):
-        u_k = gp.LinExpr()
-        for j in range(J):
-            u_k += e.calculate_pov_exact(S_a[j], S_b[k]) * a[j]
-        m.addConstr(u_k >= max_u)
-    
-    m.optimize()
-    for v in m.getVars():
-        print('%s %g' % (v.varName, v.x))
-    print('Obj: %g' % m.objVal)
-    return a, m.objVal
 
-def coreLPB(e, S_a, S_b):
-    m = gp.Model("CoreLP")
-    min_u = m.addVar(name="u")
-    J, K = len(S_a), len(S_b)
-    b = m.addVars([i for i in range(J)], name=["b" + str(i) for i in range(e.n)], ub=1)
-    
-    m.setObjective(min_u, GRB.MINIMIZE)
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
 
-    # minimax constraint
-    for k in range(K):
-        u_k = gp.LinExpr()
-        for j in range(J):
-            u_k += 1-e.calculate_pov_exact(S_a[j], S_b[k]) * b[j]
-        m.addConstr(u_k <= min_u)
-    
-    m.optimize()
-    for v in m.getVars():
-        print('%s %g' % (v.varName, v.x))
-    print('Obj: %g' % m.objVal)
-    return b, m.objVal
+# Restore
+def enablePrint():
+    sys.stdout = sys.__stdout__
 
 
 

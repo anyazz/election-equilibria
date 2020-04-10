@@ -15,19 +15,35 @@ import matplotlib.pyplot as plt
 # B = Candidate("B", 0, 0, n, p_b)
 # e2 = Election(network, [A, B], 20, theta)
 # e2.update_network()
+def calc_pov(e):
+    return (round(e3.calculate_mean(), 3))
+    # return (round(e3.calculate_pov_exact(), 3))
 
 n = 3
-network = {'relationsMatrix': np.identity(n)}
-p_b = [0.2, 1, 1]
-p_a = np.zeros(n)
-theta = [0.9, 0.1, 0.1]
-A = Candidate("A", 0, 1, n, p_a)
-B = Candidate("B", 2, 0, n, p_b)
-e3 = Election(network, [A, B], 0, theta)
-e3.update_network()
+network = {'trustMatrix': np.identity(n)}
+p_a = [0.5, 0.1, 1]
+p_b = [0.7, 0.4, 1]
+theta = [0.3, .2, 1]
+A = Candidate("A", 3, 1, n, p_a)
+B = Candidate("B", 3, 0, n, p_b)
+e3 = Election(network, [A, B], 0, "sex", theta=theta)
+# e3.A.X = [1,0,0]
+# e3.B.X = [0,0,1]
+# e3.update_network()
+# print(e3.theta_0)
+# print(e3.calculate_mean())
 
-# e3.theta = np.array([0.1, 1, 1])
-# print(e3.calculate_pov_approx())
+def test2(e):
+    e.A.X = [2.0, 0.0, 1.0]
+    e.B.X=[1.4285714285714286, 1.5714285714285714, 0.0]
+    e.update_network()
+    # print(e.theta_T)
+    # print(e.calculate_pov_exact())
+    # random_allocate(e, e.A)
+    iterated_best_response(e, 1e-4)
+    print(e.A.X)
+    print(e.B.X)
+    print(e.calculate_pov_exact())
 
 
 def test(e):
@@ -36,7 +52,7 @@ def test(e):
     # max_mean = min_mean + max(e.A.k, e.B.k) * max(max(e.A.p), max(e.B.p))
    
     print("THETA_T", e.theta_T)
-    mus = np.linspace(0, 1.5, 51)
+    mus = np.linspace(1, 4, 51)
     results = []
     povs_approx, povs_exact, x = [], [], []
     for mu in mus:
@@ -79,4 +95,4 @@ def print_results(e):
     print('POV APPROX: ', e.calculate_pov_approx())
     print('POV EXACT: ', e.calculate_pov_exact())
 
-test(e3)
+test2(e3)

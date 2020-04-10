@@ -1,4 +1,5 @@
 def round_probabilities(lst):
+    delta = 1e-2
     # round items in list if just above 1 or just below 0 due to float issues
     for i in range(len(lst)):
         if lst[i] > 1:
