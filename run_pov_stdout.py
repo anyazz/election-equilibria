@@ -52,7 +52,6 @@ def main(network):
 networks = list(range(10, 44))
 for x in [18, 19, 21, 37]: 
     networks.remove(x)
-print(len(networks))
 
 for i in networks:
     print("Network {}".format(i))
