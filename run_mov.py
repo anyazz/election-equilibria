@@ -14,7 +14,7 @@ def run(i):
     opinion_attr = "sex"
     n = len(network)
 
-    X = np.concatenate([np.linspace(0,  15, 16), np.linspace(18, 30, 7), np.linspace(35, 60, 6), np.linspace(65, 90, 4)])
+    X = [0, 3, 6, 9, 15, 20, 30, 45, 60, 80, 100, 120, 150, 200, 300]
     Y = [] # FTPL payoff
     BR = [] # BR payoff
     file_X = open("FTPL_X.txt", "w")
@@ -23,22 +23,29 @@ def run(i):
     XAs, XBs = [], []
     for x in X:
         print("BUDGET ", x)
-        file_X.write(str(x) + ', ')
+        # file_X.write(str(x) + ', ')
         A = Candidate("A", x, 1, n)
-        B = Candidate("B", n/2, 0, n)
+        B = Candidate("B", 30, 0, n)
         e = Election(data, [A, B], 10, opinion_attr, rand=False)
         e.update_network()
-        ftpl(e, 1, 1e-3)
+        ftpl(e, 3, 0.1)
         ftpl_mean = e.calculate_mean()
         XAs.append(A.X)
         XBs.append(B.X)
         Y.append(ftpl_mean)
         file_Y.write(str(ftpl_mean)+ ', ')
 
-        A.X = mov_oracle(e, A, np.zeros(n))
-        B.X = mov_oracle(e, B, np.zeros(n))
+        print("sum", sum(e.A.X))
+        print("FTPL MEAN", e.advertise())
+        print("theta", e.theta_T)
+        print(sum(e.theta_T))
+        e.A.X = mov_oracle(e, A, np.zeros(n))
+        e.B.X = mov_oracle(e, B, np.zeros(n))
+        # print(A.X)
+
         br_mean = e.calculate_mean()
         BR.append(br_mean)
+        print("BR MEAN", br_mean)
 
         file_BR.write(str(br_mean) + ', ')
         for file in [file_X, file_BR, file_Y]:
@@ -61,8 +68,4 @@ def main():
     X_mean = np.mean(Xs, axis=0)
     Y_mean = np.mean(Ys, axis=0)
     print(X_mean, Y_mean)
-    plt.scatter(X, Y)
-    plt.show()
-    plt.savefig('ftpl.png', dpi=300)
-
 main()

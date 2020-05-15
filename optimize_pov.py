@@ -5,6 +5,7 @@ import gurobipy as gp
 from optimize_mov import mov_oracle
 import sys, os
 from utils import *
+import time
 
 def random_allocate(e, cand):
     remaining = cand.k
@@ -17,8 +18,10 @@ def random_allocate(e, cand):
             remaining -= new
 
 def iterated_best_response(e, epsilon, max_iters):
+    blockPrint()
     i = 0
     restarts = 0
+    c_times, nc_times = [], []
     profiles_seen = set()
     e.A.pov_old = -float('inf')
     e.A.pov = -float('inf')
@@ -26,19 +29,25 @@ def iterated_best_response(e, epsilon, max_iters):
     e.B.pov = -float('inf')
     while i < max_iters:
         print("iteration", i)
+        e.update_network()
         for cand in [e.A, e.B]:
-            print("optimizing for cand {}".format(cand.id))
-            min_mu = sum(e.theta)
-            cand.X = mov_oracle(e, cand, cand.opp.X)
-            e.update_network()
-            max_mu = e.calculate_mean()
-            min_mu, max_mu = min(min_mu, max_mu), max(min_mu, max_mu) 
-            cand.X, cand.pov = pov_oracle(e, cand, min_mu, max_mu, 30)
+            # print("optimizing for cand {}".format(cand.id))
+            cand.X = np.zeros(e.n)
+            # if cand.id == "A":
+            #     min_mu = e.calculate_mean()
+            #     # cand.X = mov_oracle(e, cand, cand.opp.X)
+            #     # e.update_network()
+            #     max_mu = min(e.n, min_mu + cand.k)
+            # else:
+            #     max_mu = e.calculate_mean()
+            #     min_mu = max(0, max_mu - cand.k)
+            # min_mu, max_mu = min(min_mu, max_mu), max(min_mu, max_mu) 
+            cand.X, cand.pov, c_times, nc_times = pov_oracle(e, cand, 0, e.n, 50, c_times, nc_times)
             if abs(cand.pov - cand.pov_old) < epsilon:
                 cand.opp.X = cand.opp.X_old
                 cand.opp.pov = cand.opp.pov_old
-                print("POV", cand.pov, cand.opp.pov)
-                return i, restarts
+                # print("final POV", cand.pov, cand.opp.pov)
+                return i, restarts, c_times, nc_times
             cand.X_old = cand.X
             cand.pov_old = cand.pov
         tup = tuple(roundl(np.concatenate([e.A.X, e.B.X]), 3))
@@ -50,16 +59,16 @@ def iterated_best_response(e, epsilon, max_iters):
             random_allocate(e, e.B)
             print("new XB", e.B.X)
         profiles_seen.add(tup)
-        print("POV", e.A.pov, e.B.pov)
+        e.A.pov=e.calculate_pov_exact()
+        # print("mid POV", e.A.pov)
         i += 1
 
        # max_mean = min_mean + max(e.A.k, e.B.k) * max(max(e.A.p), max(e.B.p))
 
-def pov_oracle(e, cand, min_mu, max_mu, nguesses):
-    # blockPrint()
+def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times):
+    blockPrint()
     opp = cand.opp
-    mus = np.linspace(min_mu, max_mu, nguesses)
-    print(mus)
+    mus = np.linspace(0, e.n, nguesses)
     stepsize = (max_mu - min_mu) / nguesses
     Xs = []
     povs_exact = []
@@ -68,7 +77,14 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses):
     for mu in mus:
         result = {}
         try:
-            X = pov_oracle_iter(e, cand, mu, stepsize)
+            X, convex, t = pov_oracle_iter(e, cand, mu, stepsize)
+            cand.X = [X[i] if X[i] < 1./cand.p[i] else 1./cand.p[i] for i in range(e.n)]
+            print(X)
+            e.update_network()
+            if convex:
+                convex_times.append(t)
+            else:
+                nonconvex_times.append(t)
             result["POVa"] = round(e.calculate_pov_approx(), 3)
             result["POVe"] = round(e.calculate_pov_exact(), 3)
             result["theta"] = [round(i, 3) for i in e.theta_T]
@@ -79,14 +95,18 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses):
         except AttributeError:
             pass
         results.append(result)
-    print(povs_approx)
-    print(povs_exact)
-    if cand.id == "A":
-        x_a = np.argmax(povs_approx)
-        x_e = np.argmax(povs_exact)
-    else:
-        x_a = np.argmin(povs_approx)
-        x_e = np.argmin(povs_exact)
+
+    try:
+        if cand.id == "A":
+            x_a = np.argmax(povs_approx)
+            x_e = np.argmax(povs_exact)
+        else:
+            x_a = np.argmin(povs_approx)
+            x_e = np.argmin(povs_exact)
+    except:
+        raise Exception
+
+    # enablePrint()
 
     print("i", '\t', "mu",'\t', "POVa", '\t', "POVe", '\t', "theta", '\t', "X")
     losing = True
@@ -100,11 +120,12 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses):
             print(i,'\t', round(mus[i], 3), '\t', r["POVa"],'\t', r["POVe"], '\t', r["theta"], '\t', r["X"])
         else:
             print (i, '\t', round(mus[i], 3), '\t', None)
-    # enablePrint()
     cand.X = Xs[x_e]
-    return Xs[x_e], povs_exact[x_e]     
+    return Xs[x_e], povs_exact[x_e], convex_times, nonconvex_times 
 
 def pov_oracle_iter(e, cand, mu, stepsize):
+    t0 = time.process_time()
+    convex = False
     opp = cand.opp
     # if cand.id == "A":
     #     A, B = cand, cand.opp
@@ -115,7 +136,7 @@ def pov_oracle_iter(e, cand, mu, stepsize):
     u = cand.marginal_payoff(e, opp.X)
 
     # decision variables, bounded between 0 and 1
-    X = m.addVars([i for i in range(e.n)], name=["X" + str(i) for i in range(e.n)])
+    X = m.addVars([i for i in range(e.n)], name=["X" + str(i) for i in range(e.n)], ub=[1./cand.p[i] for i in range(e.n)])
 
     # objective function
     obj = gp.QuadExpr()
@@ -129,8 +150,10 @@ def pov_oracle_iter(e, cand, mu, stepsize):
 
     # check if either A losing and optimizing for A, or B losing and optimizing for B
     if (mu < (e.n+1)/2 and cand.id == "A") or (mu > (e.n+1)/2 and cand.id == "B"):
+        convex = True
         m.setObjective(obj, gp.GRB.MINIMIZE)
     else:
+        convex = False
         m.setObjective(obj, gp.GRB.MAXIMIZE)
         m.params.NonConvex = 2
 
@@ -144,9 +167,10 @@ def pov_oracle_iter(e, cand, mu, stepsize):
         mean += sign * X[i] * u[i] + e.alpha[i] * c[i]
     m.addConstr(mean == mu)
 
-
+    print([1./cand.p[i] for i in range(e.n)])
     # min/max opinion constraint
-    m.addConstrs((X[i] <= 1/cand.p[i] for i in range(e.n)))
+    m.addConstrs((X[i] <= cand.max_expenditure(e, opp.X, i) for i in range(e.n)))
+
     m.setParam("OutputFlag", 0);
 
     m.optimize()
@@ -157,8 +181,9 @@ def pov_oracle_iter(e, cand, mu, stepsize):
 
     X_cand = [i.x for i in m.getVars()]
     cand.X = X_cand
+    t1 = time.process_time()
     
-    return X_cand
+    return X_cand, convex, t1-t0
 
 
 def blockPrint():

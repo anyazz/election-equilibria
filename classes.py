@@ -4,15 +4,25 @@ from scipy.stats import norm
 import math
 from poibin import PoiBin
 from utils import *
+from optimize_pov import enablePrint, blockPrint
 np.set_printoptions(threshold=np.inf)
 
 delta = 0.0001
 
 class Election:
-    def __init__(self, data, candidates, T, opinion_attr=None, theta=[], rand=False, model_type='linear'):
-        self.data = data
+    def __init__(self, data, n, candidates, T, opinion_attr=None, theta=[], rand=False, model_type='linear'):
+        self.data = data  
         self.P = np.array(data["trustMatrix"])
-        self.n = len(self.P)
+        if n < len(self.P):
+            idx = np.array(random.sample(range(len(self.P)), n))
+            self.P = self.P[idx[:, None], idx]
+            for i, row in enumerate(self.P):
+                s = sum(row)
+                self.P[i] *= 1./s
+            print(self.P)
+            for row in self.P:
+                assert(abs(sum(row) - 1) < 0.01)
+        self.n = n
         self.A, self.B = candidates
         self.A.opp, self.B.opp = self.B, self.A
         self.P_T = np.linalg.matrix_power(self.P, T)
@@ -73,8 +83,13 @@ class Election:
 
     def calculate_pov_exact(self):
         self.theta_T = round_probabilities(self.theta_T)
-        pb = PoiBin(self.theta_T)
-        return 1 - pb.cdf(math.floor(self.n/2))
+        try:
+            pb = PoiBin(self.theta_T)
+            return 1 - pb.cdf(math.floor(self.n/2))
+        except Exception as e: 
+            enablePrint()
+            print(self.theta_T)
+            raise e
 
     def calculate_homophily(self, theta):
         type1 = set([i for i in range(self.n) if theta[i] > 0.5])

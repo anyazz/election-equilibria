@@ -61,7 +61,11 @@ def mov_oracle(e, cand, X_opp):
         if len(heap):
             x_score, x = heapq.heappop(heap)
             max_X = cand.max_expenditure(e, X_opp, x)
+            print("XX", max_X, remaining)
+            if max_X < 0:
+                print(x, x_score)
             X[x] = min(max_X, remaining)
+
             assert X[x] >= 0
         remaining -= X[x]
     return X
