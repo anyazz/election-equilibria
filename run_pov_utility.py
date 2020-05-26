@@ -26,8 +26,8 @@ def run(i):
     e = Election(data, n, [A, B], 10, opinion_attr, rand=False)
     # if i == 1:
         # X = X[3:]
-    # res = {}
-    for x in X:
+    res = {}
+    for x in X[:2]:
         budget_dict = {}
         enablePrint()
         # print("BUDGET ", x)
@@ -54,12 +54,13 @@ def run(i):
         budget_dict["abr"] = alt_pov
         budget_dict["sbr"] = single_pov
 
-        print("{}: ".format(x) + json.dumps(budget_dict))
+        res[x] = json.dumps(budget_dict)
         # file.flush()
         # enablePrint()
         # print("Completed in {} iters with {} restarts".format(i, r))
         # print("ABR POV: {}, SBR POV: {}".format(alt_pov, single_pov))
         # blockPrint()
+    print("{}: ".format(i) + json.dumps(res) + ", ")
     # enablePrint()
     # file.close()
 
