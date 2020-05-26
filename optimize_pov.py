@@ -18,7 +18,6 @@ def random_allocate(e, cand):
             remaining -= new
 
 def iterated_best_response(e, epsilon, max_iters):
-    blockPrint()
     i = 0
     restarts = 0
     c_times, nc_times = [], []
@@ -28,7 +27,9 @@ def iterated_best_response(e, epsilon, max_iters):
     e.B.pov_old = -float('inf')
     e.B.pov = -float('inf')
     while i < max_iters:
+        enablePrint()
         print("iteration", i)
+        blockPrint()
         e.update_network()
         for cand in [e.A, e.B]:
             # print("optimizing for cand {}".format(cand.id))
@@ -66,15 +67,17 @@ def iterated_best_response(e, epsilon, max_iters):
        # max_mean = min_mean + max(e.A.k, e.B.k) * max(max(e.A.p), max(e.B.p))
 
 def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times):
-    blockPrint()
     opp = cand.opp
-    mus = np.linspace(0, e.n, nguesses)
+    exact_mean = e.calculate_mean()
+    mus = list(np.linspace(0, e.n, nguesses))
+    mus.append(exact_mean)
     stepsize = (max_mu - min_mu) / nguesses
     Xs = []
     povs_exact = []
     povs_approx = []
     results = []
     for mu in mus:
+        print("mu", mu)
         result = {}
         try:
             X, convex, t = pov_oracle_iter(e, cand, mu, stepsize)
@@ -93,6 +96,7 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times)
             povs_approx.append(e.calculate_pov_approx())
             Xs.append(X)
         except AttributeError:
+            print("AttributeError", mu)
             pass
         results.append(result)
 
@@ -104,9 +108,9 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times)
             x_a = np.argmin(povs_approx)
             x_e = np.argmin(povs_exact)
     except:
+        enablePrint()
+        print(cand.id, cand.X)
         raise Exception
-
-    # enablePrint()
 
     print("i", '\t', "mu",'\t', "POVa", '\t', "POVe", '\t', "theta", '\t', "X")
     losing = True
@@ -167,7 +171,6 @@ def pov_oracle_iter(e, cand, mu, stepsize):
         mean += sign * X[i] * u[i] + e.alpha[i] * c[i]
     m.addConstr(mean == mu)
 
-    print([1./cand.p[i] for i in range(e.n)])
     # min/max opinion constraint
     m.addConstrs((X[i] <= cand.max_expenditure(e, opp.X, i) for i in range(e.n)))
 

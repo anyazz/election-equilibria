@@ -83,13 +83,8 @@ class Election:
 
     def calculate_pov_exact(self):
         self.theta_T = round_probabilities(self.theta_T)
-        try:
-            pb = PoiBin(self.theta_T)
-            return 1 - pb.cdf(math.floor(self.n/2))
-        except Exception as e: 
-            enablePrint()
-            print(self.theta_T)
-            raise e
+        pb = PoiBin(self.theta_T)
+        return 1 - pb.cdf(math.floor(self.n/2))
 
     def calculate_homophily(self, theta):
         type1 = set([i for i in range(self.n) if theta[i] > 0.5])
