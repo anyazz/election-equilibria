@@ -35,17 +35,22 @@ def main(network):
     convex_means, nonconvex_means = [], []
     iters, restarts = [], []
 
-    N = [round(n) for n in np.logspace(0, math.log(MAX_NODES, 2), num=30, base=2.0)]
-    N = sorted(list(set(N)))
+    # N = [round(n) for n in np.logspace(0, math.log(MAX_NODES, 2), num=30, base=2.0)]
+    # N = sorted(list(set(N)))
+    N = list(np.linspace(0, 300, 16))
+
     t0 = time.process_time()
-    for n in N[:18]:
+    for n in N:
         i, r, c, nc = run(int(n), network)
-        iters.append(i)
-        restarts.append(r)
-        convex_means.append(c)
-        nonconvex_means.append(nc)
+        budget_dict = {}
+        budget_dict["i"] = i
+        budget_dict["r"] = r
+        budget_dict["c"] = np.mean(c)
+        budget_dict["nc"] = np.mean(nc)
+        budget_dict["abr"] = alt_pov
+        budget_dict["sbr"] = single_pov
     enablePrint()
-    print({"i": iters, "r": restarts, "c": convex_means, "nc": nonconvex_means})
+    print(network: {"i": iters, "r": restarts, "c": convex_means, "nc": nonconvex_means})
     t1 = time.process_time()
     # print("NETWORK {} RUNTIME: ".format(i), t1-t0)
 

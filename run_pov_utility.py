@@ -66,7 +66,7 @@ def run(i):
     return X
 
 def main():
-    for i in range(2, 11):
+    for i in range(3, 11):
         print("NETWORK {}".format(i))
         run(i)
     # Xs, ABRs = [], []

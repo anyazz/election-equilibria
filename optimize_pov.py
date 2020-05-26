@@ -28,7 +28,7 @@ def iterated_best_response(e, epsilon, max_iters):
     e.B.pov = -float('inf')
     while i < max_iters:
         enablePrint()
-        print("iteration", i)
+        # print("iteration", i)
         blockPrint()
         e.update_network()
         for cand in [e.A, e.B]:
