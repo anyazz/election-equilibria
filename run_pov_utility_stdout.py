@@ -19,21 +19,22 @@ def run(i):
     # X = [0, 3, 6, 9, 15, 20, 30, 45, 60, 80, 100, 120, 150, 200, 300]
     X = list(np.linspace(0, 300, 16))
     n = 32
-    file = open("data_utility/{}.txt".format(i), "w")
+    # file = open("data_utility/{}.txt".format(i), "w")
 
     A = Candidate("A", 0, 1, n)
     B = Candidate("B", 0, 0, n)
     e = Election(data, n, [A, B], 10, opinion_attr, rand=False)
     # if i == 1:
         # X = X[3:]
+    res = {}
     for x in X:
         budget_dict = {}
         enablePrint()
-        print("BUDGET ", x)
+        # print("BUDGET ", x)
         blockPrint()
         A.k=x
         B.k = max(X)-x
-        print("BUDGETS 1", A.k, B.k)
+        # print("BUDGETS 1", A.k, B.k)
 
         e.update_network()
         i, r, c, nc = iterated_best_response(e, 1e-2, 1e3)
@@ -53,23 +54,21 @@ def run(i):
         budget_dict["abr"] = alt_pov
         budget_dict["sbr"] = single_pov
 
-        file.write("{}: ".format(x) + json.dumps(budget_dict) + ", ")
-        file.flush()
-        enablePrint()
-        print("Completed in {} iters with {} restarts".format(i, r))
-        print("ABR POV: {}, SBR POV: {}".format(alt_pov, single_pov))
-        blockPrint()
-    # print("{}: ".format(i) + json.dumps(res) + ", ")
+        res[x] = json.dumps(budget_dict)
+        # file.flush()
+        # enablePrint()
+        # print("Completed in {} iters with {} restarts".format(i, r))
+        # print("ABR POV: {}, SBR POV: {}".format(alt_pov, single_pov))
+        # blockPrint()
+    print("{}: ".format(i) + json.dumps(res) + ", ")
     # enablePrint()
     # file.close()
 
     return X
 
 def main():
-    for i in range(11, 31):
-        enablePrint()
+    for i in range(3, 11):
         print("NETWORK {}".format(i))
-        blockPrint() 
         run(i)
     # Xs, ABRs = [], []
     # X, ABR = run(3)
