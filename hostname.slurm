@@ -14,4 +14,4 @@ rm /n/home09/anyazhang/gurobi902/gurobi.lic
 curl --data "id=d1204ecc-a05c-11ea-8cca-0a7c4f30bdbe
 &hostname=$hostname&hostid=$hostid&username=anyazhang&os=linux64&localdate=2020-05-27&version=9&sockets=2" -X POST http://apps.gurobi.com/keyserver > /n/home09/anyazhang/gurobi902/gurobi.lic
 sed -i '1,2d' /n/home09/anyazhang/gurobi902/gurobi.lic
-python3 run_pov_utility.py
+python3 run_pov_utility_stdout.py
