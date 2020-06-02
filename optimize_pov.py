@@ -67,6 +67,8 @@ def iterated_best_response(e, epsilon, max_iters):
        # max_mean = min_mean + max(e.A.k, e.B.k) * max(max(e.A.p), max(e.B.p))
 
 def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times):
+    if nguesses > 200:
+        raise Exception
     opp = cand.opp
     exact_mean = e.calculate_mean()
     mus = list(np.linspace(0, e.n, nguesses))
@@ -121,7 +123,8 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times)
                 print(i,'\t', round(mus[i], 3), '\t', r["POVa"],'\t', r["POVe"], '\t', r["theta"], '\t', r["X"])
             else:
                 print (i, '\t', round(mus[i], 3), '\t', None)
-        raise Exception
+        return pov_oracle(e, cand, min_mu, max_mu, nguesses * 2, convex_times, nonconvex_times)
+        # raise Exception
     cand.X = Xs[x_e]
     return Xs[x_e], povs_exact[x_e], convex_times, nonconvex_times 
 
