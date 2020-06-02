@@ -109,21 +109,19 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times)
             x_e = np.argmin(povs_exact)
     except:
         enablePrint()
-        print(cand.id, cand.X)
+        print("i", '\t', "mu",'\t', "POVa", '\t', "POVe", '\t', "theta", '\t', "X")
+        losing = True
+        print('\n', 'MAXIMIZING VAR')
+        for i in range(len(mus)):
+            r = results[i]
+            if losing and mus[i] > (e.n+1)/2:
+                print('\n', 'MINIMIZING VAR')
+                losing = False
+            if r:
+                print(i,'\t', round(mus[i], 3), '\t', r["POVa"],'\t', r["POVe"], '\t', r["theta"], '\t', r["X"])
+            else:
+                print (i, '\t', round(mus[i], 3), '\t', None)
         raise Exception
-
-    print("i", '\t', "mu",'\t', "POVa", '\t', "POVe", '\t', "theta", '\t', "X")
-    losing = True
-    print('\n', 'MAXIMIZING VAR')
-    for i in range(len(mus)):
-        r = results[i]
-        if losing and mus[i] > (e.n+1)/2:
-            print('\n', 'MINIMIZING VAR')
-            losing = False
-        if r:
-            print(i,'\t', round(mus[i], 3), '\t', r["POVa"],'\t', r["POVe"], '\t', r["theta"], '\t', r["X"])
-        else:
-            print (i, '\t', round(mus[i], 3), '\t', None)
     cand.X = Xs[x_e]
     return Xs[x_e], povs_exact[x_e], convex_times, nonconvex_times 
 

@@ -66,7 +66,7 @@ def run(i):
     return X
 
 def main():
-    for i in range(11, 31):
+    for i in range(21, 31):
         enablePrint()
         print("NETWORK {}".format(i))
         blockPrint() 
