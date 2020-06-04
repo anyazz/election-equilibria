@@ -78,6 +78,8 @@ class Election:
             square_sum += self.theta_T[i] ** 2
         if abs(mu-square_sum) < 1e-4:
             return np.sign((self.n + 1)/2 - mu)
+        print(math.sqrt(mu-square_sum)) 
+        print(((self.n + 1)/2 - mu)/(math.sqrt(mu-square_sum)))
         pov = 1 - norm.cdf(((self.n + 1)/2 - mu)/(math.sqrt(mu-square_sum)))
         return pov
 

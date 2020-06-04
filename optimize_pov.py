@@ -17,7 +17,7 @@ def random_allocate(e, cand):
             cand.X[i] += new
             remaining -= new
 
-def iterated_best_response(e, epsilon, max_iters):
+def iterated_best_response(e, epsilon, nguesses, max_iters):
     i = 0
     restarts = 0
     c_times, nc_times = [], []
@@ -43,7 +43,7 @@ def iterated_best_response(e, epsilon, max_iters):
             #     max_mu = e.calculate_mean()
             #     min_mu = max(0, max_mu - cand.k)
             # min_mu, max_mu = min(min_mu, max_mu), max(min_mu, max_mu) 
-            cand.X, cand.pov, c_times, nc_times = pov_oracle(e, cand, 0, e.n, 50, c_times, nc_times)
+            cand.X, cand.pov, c_times, nc_times = pov_oracle(e, cand, 0, e.n, nguesses, c_times, nc_times)
             if abs(cand.pov - cand.pov_old) < epsilon:
                 cand.opp.X = cand.opp.X_old
                 cand.opp.pov = cand.opp.pov_old
@@ -67,12 +67,16 @@ def iterated_best_response(e, epsilon, max_iters):
        # max_mean = min_mean + max(e.A.k, e.B.k) * max(max(e.A.p), max(e.B.p))
 
 def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times):
-    if nguesses > 200:
-        raise Exception
+    enablePrint()
+    # print("**********POV ORACLE OPTIMIZING FOR CAND {}************".format(cand.id))
+    blockPrint()
     opp = cand.opp
     exact_mean = e.calculate_mean()
     mus = list(np.linspace(0, e.n, nguesses))
     mus.append(exact_mean)
+    # enablePrint()
+    # print("EXACT MEAN: {}".format(exact_mean))
+    # blockPrint()
     stepsize = (max_mu - min_mu) / nguesses
     Xs = []
     povs_exact = []
@@ -101,7 +105,23 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times)
             print("AttributeError", mu)
             pass
         results.append(result)
+    # enablePrint()
+    print("i", '\t', "mu",'\t', "POVa", '\t', "POVe", '\t', "theta", '\t', "X")
+    losing = True
+    print('\n', 'MAXIMIZING VAR')
+    for i in range(len(mus)):
+        r = results[i]
+        if losing and mus[i] > (e.n+1)/2:
+            print('\n', 'MINIMIZING VAR')
+            losing = False
+        if r:
+            print(i,'\t', round(mus[i], 3), '\t', r["POVa"],'\t', r["POVe"], '\t', r["theta"], '\t', r["X"])
+        else:
+            print (i, '\t', round(mus[i], 3), '\t', None)
+    print("EXACT POVS: ", povs_exact)
+    print("APPROX POVS: ", povs_approx)
 
+    # blockPrint()
     try:
         if cand.id == "A":
             x_a = np.argmax(povs_approx)
@@ -110,22 +130,11 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times)
             x_a = np.argmin(povs_approx)
             x_e = np.argmin(povs_exact)
     except:
-        enablePrint()
-        print("i", '\t', "mu",'\t', "POVa", '\t', "POVe", '\t', "theta", '\t', "X")
-        losing = True
-        print('\n', 'MAXIMIZING VAR')
-        for i in range(len(mus)):
-            r = results[i]
-            if losing and mus[i] > (e.n+1)/2:
-                print('\n', 'MINIMIZING VAR')
-                losing = False
-            if r:
-                print(i,'\t', round(mus[i], 3), '\t', r["POVa"],'\t', r["POVe"], '\t', r["theta"], '\t', r["X"])
-            else:
-                print (i, '\t', round(mus[i], 3), '\t', None)
-        return pov_oracle(e, cand, min_mu, max_mu, nguesses * 2, convex_times, nonconvex_times)
-        # raise Exception
+        raise Exception
     cand.X = Xs[x_e]
+    enablePrint()
+    print("CAND {} FINAL ALLOCATION: X={}".format(cand.id,cand.X))
+    blockPrint()
     return Xs[x_e], povs_exact[x_e], convex_times, nonconvex_times 
 
 def pov_oracle_iter(e, cand, mu, stepsize):
