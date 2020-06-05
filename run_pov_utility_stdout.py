@@ -17,7 +17,7 @@ def run(i):
 
     # X = [0, 5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 105, 110, 115, 117, 118, 119, 119.5, 120]
     # X = [0, 3, 6, 9, 15, 20, 30, 45, 60, 80, 100, 120, 150, 200, 300]
-    X = list(np.linspace(0, 300, 16))
+    X = list(np.linspace(0, 300, 2))
     n = 32
     # file = open("data_utility/{}.txt".format(i), "w")
 
@@ -37,16 +37,22 @@ def run(i):
         # print("BUDGETS 1", A.k, B.k)
 
         e.update_network()
-        i, r, c, nc = iterated_best_response(e, 1e-2, 1e3)
+        i, r, c, nc = iterated_best_response(e, 1e-2, 20, 1e3)
         e.update_network()
         alt_pov = e.calculate_pov_exact()
 
-        A.X, _, _, _ = pov_oracle(e, A, 0, e.n, 40, [], [])
-        B.X, _, _, _ = pov_oracle(e, B, 0, e.n, 40, [], [])
+        A.X, B.X = [0] * n, [0] * n
+        A_X_SBR, _, _, _ = pov_oracle(e, A, 0, e.n, 20, [], [])
+        A.X,B.X = [0] * n, [0] * n
+        B_X_SBR, _, _, _ = pov_oracle(e, B, 0, e.n, 20, [], [])
 
+        enablePrint()
+        A.X = A_X_SBR
+        B.X = B_X_SBR
         e.update_network()
 
         single_pov = e.calculate_pov_exact()
+
         budget_dict["i"] = i
         budget_dict["r"] = r
         budget_dict["c"] = np.mean(c)
@@ -63,11 +69,15 @@ def run(i):
     print("{}: ".format(i) + json.dumps(res) + ", ")
     # enablePrint()
     # file.close()
+    A.X, B.X = [0] * n, [0] * n
+    e.update_network()
 
+    single_pov = e.calculate_pov_exact()
+    print("default POV: {}".format(single_pov))
     return X
 
 def main():
-    for i in range(3, 11):
+    for i in range(30, 51):
         print("NETWORK {}".format(i))
         run(i)
     # Xs, ABRs = [], []

@@ -65,6 +65,9 @@ class Election:
     def update_network(self):
         self.theta_0 = self.advertise()
         self.theta_T = np.matmul(self.P_T, self.theta_0)
+        assert all(x < 1.001 for x in self.theta_T)
+        assert all(x > -.001 for x in self.theta_T)
+
 
     def calculate_mean(self):
         self.update_network()
@@ -78,9 +81,15 @@ class Election:
             square_sum += self.theta_T[i] ** 2
         if abs(mu-square_sum) < 1e-4:
             return np.sign((self.n + 1)/2 - mu)
-        print(math.sqrt(mu-square_sum)) 
-        print(((self.n + 1)/2 - mu)/(math.sqrt(mu-square_sum)))
-        pov = 1 - norm.cdf(((self.n + 1)/2 - mu)/(math.sqrt(mu-square_sum)))
+        # print(math.sqrt(mu-square_sum)) 
+        # print(((self.n + 1)/2 - mu)/(math.sqrt(mu-square_sum)))
+        try:
+            pov = 1 - norm.cdf(((self.n + 1)/2 - mu)/(math.sqrt(mu-square_sum)))
+        except:
+            print("DEBUG MATH")
+            print("theta: ", self.theta_T)
+            print("mu: {}".format(mu))
+            print("square sum: {}".format(square_sum))
         return pov
 
     def calculate_pov_exact(self):

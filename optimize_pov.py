@@ -27,7 +27,7 @@ def iterated_best_response(e, epsilon, nguesses, max_iters):
     e.B.pov_old = -float('inf')
     e.B.pov = -float('inf')
     while i < max_iters:
-        enablePrint()
+        # enablePrint()
         print("iteration", i)
         blockPrint()
         e.update_network()
@@ -67,16 +67,16 @@ def iterated_best_response(e, epsilon, nguesses, max_iters):
        # max_mean = min_mean + max(e.A.k, e.B.k) * max(max(e.A.p), max(e.B.p))
 
 def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times):
-    enablePrint()
-    # print("**********POV ORACLE OPTIMIZING FOR CAND {}************".format(cand.id))
+    # enablePrint()
+    print("**********POV ORACLE OPTIMIZING FOR CAND {}************".format(cand.id))
     blockPrint()
     opp = cand.opp
     exact_mean = e.calculate_mean()
     mus = list(np.linspace(0, e.n, nguesses))
     mus.append(exact_mean)
     # enablePrint()
-    # print("EXACT MEAN: {}".format(exact_mean))
-    # blockPrint()
+    print("EXACT MEAN: {}".format(exact_mean))
+    blockPrint()
     stepsize = (max_mu - min_mu) / nguesses
     Xs = []
     povs_exact = []
@@ -121,7 +121,7 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times)
     print("EXACT POVS: ", povs_exact)
     print("APPROX POVS: ", povs_approx)
 
-    # blockPrint()
+    blockPrint()
     try:
         if cand.id == "A":
             x_a = np.argmax(povs_approx)
@@ -132,7 +132,7 @@ def pov_oracle(e, cand, min_mu, max_mu, nguesses, convex_times, nonconvex_times)
     except:
         raise Exception
     cand.X = Xs[x_e]
-    enablePrint()
+    # enablePrint()
     print("CAND {} FINAL ALLOCATION: X={}".format(cand.id,cand.X))
     blockPrint()
     return Xs[x_e], povs_exact[x_e], convex_times, nonconvex_times 
@@ -185,15 +185,24 @@ def pov_oracle_iter(e, cand, mu, stepsize):
     m.addConstrs((X[i] <= cand.max_expenditure(e, opp.X, i) for i in range(e.n)))
 
     m.setParam("OutputFlag", 0);
+    m.setParam('TimeLimit', 4*60)
 
     m.optimize()
 
     # for v in m.getVars():
     #     print('%s %g' % (v.varName, v.x))
     # print('Obj: %g' % m.objVal)
-
-    X_cand = [i.x for i in m.getVars()]
+    X_cand = []
+    for i, var in enumerate(m.getVars()):
+        if var.x <=1:
+            X_cand.append(var.x)
+        else:
+            X_cand.append(1/cand.p[i])
     cand.X = X_cand
+    print("Probability Xp", np.multiply(cand.X, cand.p))
+    assert all([x <=1.001 for x in list(np.multiply(cand.X, cand.p))])
+    assert all([x <=1 for x in list(np.multiply(cand.X, cand.p))])
+    print("Probability Xp", np.multiply(cand.X, cand.p))
     t1 = time.process_time()
     
     return X_cand, convex, t1-t0
